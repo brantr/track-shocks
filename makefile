@@ -1,4 +1,4 @@
-EXEC   = track_peaks
+EXEC   = track_shocks
 
 OPTIMIZE =  -O2 -Wno-write-strings 
 

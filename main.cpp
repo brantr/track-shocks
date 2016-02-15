@@ -103,12 +103,61 @@ int main(int argc, char **argv)
 
   //if we've supplied a range of snapshots
   //to search, use that
-  if(argc==3)
+  if(argc>=3)
   {
   	imin = atoi(argv[1]);
   	imax = atoi(argv[2]);
   }
 
+  if(argc>3)
+  {
+  	char fname_input_list[200];
+   	char fname_input_data[200];
+
+   	char **list_list;
+   	char **data_list;
+
+   	int n_list;
+   	int n_data;
+
+  	sprintf(fname_input_list,"%s",argv[3]);
+   	sprintf(fname_input_data,"%s",argv[4]);
+
+   	FILE *fp_input_list;
+   	FILE *fp_input_data;
+
+   	if(!(fp_input_list = fopen(fname_input_list,"r")))
+   	{
+   		printf("Error opening %s\n",fname_input_list);
+   		exit(-1);
+   	}
+
+   	if(!(fp_input_data = fopen(fname_input_data,"r")))
+   	{
+   		printf("Error opening %s\n",fname_input_data);
+   		exit(-1);
+   	}
+
+   	fscanf(fp_input_list,"%d\n",&n_list);
+   	fscanf(fp_input_data,"%d\n",&n_data);
+
+   	list_list = (char **) malloc(n_list*sizeof(char *));
+   	data_list = (char **) malloc(n_data*sizeof(char *));
+
+   	for(int i=0;i<n_list;i++)
+   	{
+   		list_list[i] = (char *) malloc(200*sizeof(char));
+   		fscanf(fp_input_list,"%s\n",list_list[i]);
+   		printf("list_list %s\n",list_list[i]);
+   	}
+   	for(int i=0;i<n_data;i++)
+   	{
+   		data_list[i] = (char *) malloc(200*sizeof(char));
+     	fscanf(fp_input_data,"%s\n",data_list[i]);
+   		printf("data_list %s\n",data_list[i]);
+   	}
+  }
+  return 0;
   printf("imin = %d\n",imin);
   printf("imax = %d\n",imax);
 
@@ -120,12 +169,17 @@ int main(int argc, char **argv)
   {
   	iB = iA - 1;
 
-    sprintf(flist_A,"%s%s.%04d.list",fdir,fbase,iA);
-    sprintf(flist_B,"%s%s.%04d.list",fdir,fbase,iB);	
-    sprintf(fdata_A,"%s%s.%04d.dat", fdir,fbase,iA);
-    sprintf(fdata_B,"%s%s.%04d.dat", fdir,fbase,iB);
+  	if(argc<=3)
+  	{
+	    sprintf(flist_A,"%s%s.%04d.list",fdir,fbase,iA);
+	    sprintf(flist_B,"%s%s.%04d.list",fdir,fbase,iB);	
+	    sprintf(fdata_A,"%s%s.%04d.dat", fdir,fbase,iA);
+	    sprintf(fdata_B,"%s%s.%04d.dat", fdir,fbase,iB);
+	    printf("%s\n%s\n%s\n%s\n",flist_A,flist_B,fdata_A,fdata_B);
 
-    printf("%s\n%s\n%s\n%s\n",flist_A,flist_B,fdata_A,fdata_B);
+	}else{
+
+	}
 
     //if iA==imax, then read in the first
     //shock list from file.  If not, then
