@@ -99,6 +99,9 @@ int main(int argc, char **argv)
   double time_A;
   double time_B;
 
+  int *snap_list; //list of snapshots to use in tracking
+  int n_snaps;    //total number of snapshots to use
+
   time_A = timer();
 
   //if we've supplied a range of snapshots
@@ -111,75 +114,62 @@ int main(int argc, char **argv)
 
   if(argc>3)
   {
-  	char fname_input_list[200];
-   	char fname_input_data[200];
+  	char fname_snap_list[200];
 
-   	char **list_list;
-   	char **data_list;
 
-   	int n_list;
-   	int n_data;
 
-  	sprintf(fname_input_list,"%s",argv[3]);
-   	sprintf(fname_input_data,"%s",argv[4]);
+  	sprintf(fname_snap_list,"%s",argv[3]);
 
-   	FILE *fp_input_list;
-   	FILE *fp_input_data;
+   	FILE *fp_snap_list;
 
-   	if(!(fp_input_list = fopen(fname_input_list,"r")))
+   	if(!(fp_snap_list = fopen(fname_snap_list,"r")))
    	{
-   		printf("Error opening %s\n",fname_input_list);
+   		printf("Error opening %s\n",fname_snap_list);
    		exit(-1);
    	}
 
-   	if(!(fp_input_data = fopen(fname_input_data,"r")))
-   	{
-   		printf("Error opening %s\n",fname_input_data);
-   		exit(-1);
-   	}
+   	fscanf(fp_snap_list,"%d\n",&n_snaps);
 
-   	fscanf(fp_input_list,"%d\n",&n_list);
-   	fscanf(fp_input_data,"%d\n",&n_data);
+    snap_list = (int *)malloc(n_snaps*sizeof(int));
 
-   	list_list = (char **) malloc(n_list*sizeof(char *));
-   	data_list = (char **) malloc(n_data*sizeof(char *));
+   	for(int i=0;i<n_snaps;i++)
+   	{
+   		fscanf(fp_snap_list,"%d\n",&snap_list[i]);
+   		//printf("snap_list[%d] = %d\n",i,snap_list[i]);
+   	}
+    fclose(fp_snap_list);
 
-   	for(int i=0;i<n_list;i++)
-   	{
-   		list_list[i] = (char *) malloc(200*sizeof(char));
-   		fscanf(fp_input_list,"%s\n",list_list[i]);
-   		printf("list_list %s\n",list_list[i]);
-   	}
-   	for(int i=0;i<n_data;i++)
-   	{
-   		data_list[i] = (char *) malloc(200*sizeof(char));
-     	fscanf(fp_input_data,"%s\n",data_list[i]);
-   		printf("data_list %s\n",data_list[i]);
-   	}
+    imin = snap_list[n_snaps-1];
+    imax = snap_list[0];
+  }else{
+
+    n_snaps = imax-imin+1;
+    snap_list = (int *)malloc(n_snaps*sizeof(int));
+
+    for(int i=0;i<n_snaps;i++)
+      snap_list[i] = imax - i;
+
   }
-  return 0;
-  printf("imin = %d\n",imin);
-  printf("imax = %d\n",imax);
+  printf("imin = %d %d\n",imin,snap_list[n_snaps-1]);
+  printf("imax = %d %d\n",imax,snap_list[0]);
 
   sprintf(fdir,"data/");
   sprintf(fbase,"peak.blended");
   sprintf(foutput,"interactions/interactions.%04d.%04d.txt",imin,imax);
 
-  for(iA = imax; iA>imin; iA--)
+  for(int isnap = 0; isnap<n_snaps-1; isnap++)
   {
-  	iB = iA - 1;
+  	iA = snap_list[isnap];
+    iB = snap_list[isnap+1];
 
-  	if(argc<=3)
-  	{
-	    sprintf(flist_A,"%s%s.%04d.list",fdir,fbase,iA);
-	    sprintf(flist_B,"%s%s.%04d.list",fdir,fbase,iB);	
-	    sprintf(fdata_A,"%s%s.%04d.dat", fdir,fbase,iA);
-	    sprintf(fdata_B,"%s%s.%04d.dat", fdir,fbase,iB);
-	    printf("%s\n%s\n%s\n%s\n",flist_A,flist_B,fdata_A,fdata_B);
+    printf("iA %04d\tiB %04d\n",iA,iB);
 
-	}else{
-
-	}
+    sprintf(flist_A,"%s%s.%04d.list",fdir,fbase,iA);
+    sprintf(flist_B,"%s%s.%04d.list",fdir,fbase,iB);	
+    sprintf(fdata_A,"%s%s.%04d.dat", fdir,fbase,iA);
+    sprintf(fdata_B,"%s%s.%04d.dat", fdir,fbase,iB);
+    printf("%s\n%s\n%s\n%s\n",flist_A,flist_B,fdata_A,fdata_B);
+    
 
     //if iA==imax, then read in the first
     //shock list from file.  If not, then
@@ -187,11 +177,11 @@ int main(int argc, char **argv)
     //shock list
   	if(iA==imax)
   	{
- 	  read_shock_list(flist_A, &sA);
-	  nA = 0;
-	  for(size_t i=0;i<sA.size();i++)
-		nA += sA.size();
-	  tA.resize(nA);
+      read_shock_list(flist_A, &sA);
+      nA = 0;
+      for(size_t i=0;i<sA.size();i++)
+		    nA += sA.size();
+      tA.resize(nA);
       read_shock_data(fdata_A, sA, &tA);
       printf("sA->size() %ld\n",sA.size());
       printf("tA->size() %ld\n",tA.size());
@@ -208,19 +198,19 @@ int main(int argc, char **argv)
   	printf("Reading shock data...\n");
  
   	//read sB list
-	read_shock_list(flist_B, &sB);
+    read_shock_list(flist_B, &sB);
 
-	printf("sB->size() %ld\n",sB.size());
+    printf("sB->size() %ld\n",sB.size());
 
-	//read sB data
-	nB = 0;
-	for(size_t i=0;i<sB.size();i++)
-		nB += sB.size();
-	tB.resize(nB);
-	printf("tB.size() %ld\n",tB.size());
-	read_shock_data(fdata_B, sB, &tB);
+    //read sB data
+    nB = 0;
+    for(size_t i=0;i<sB.size();i++)
+      nB += sB.size();
+    tB.resize(nB);
+    printf("tB.size() %ld\n",tB.size());
+    read_shock_data(fdata_B, sB, &tB);
 
-	printf("Done reading shocks...\n");
+    printf("Done reading shocks...\n");
 
 	//print out info about the shock list
 	//show_shocks(sA);
