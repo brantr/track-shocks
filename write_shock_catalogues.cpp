@@ -369,8 +369,8 @@ void read_shock_data(char fname[], vector<shock> s, vector<tracer> *t)
   io = 0;
   for(int i=0;i<n;i++)
   {
-    printf("s[i].l %ld\n",s[i].l);
-    fflush(stdout);
+    //printf("s[i].l %ld\n",s[i].l);
+    //fflush(stdout);
     dpeak  = (float *) malloc(s[i].l * sizeof(float));
     xpeak  = (float *) malloc(s[i].l * sizeof(float));
     ypeak  = (float *) malloc(s[i].l * sizeof(float));
