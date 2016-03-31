@@ -5,6 +5,7 @@
 #include "write_shock_catalogues.hpp" //correct catalogues
 #include "timer.h"
 
+//#define LIMIT_SHOCKS
 
 tracer tin;                       /* buffer for adding tracers to tracer vectors */
 
@@ -248,7 +249,11 @@ int main(int argc, char **argv)
       bp_tree = new kdtree2(bp_tree_data, true);
 
       //loop over A shocks
+#ifndef LIMIT_SHOCKS
       for(long ss=0;ss<sA.size();ss++)
+#else
+      for(long ss=0;ss<10;ss++)
+#endif 
       {
         n_ints_in = 0;
         if(sA[ss].l>1)
