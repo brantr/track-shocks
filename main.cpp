@@ -9,6 +9,7 @@
 
 tracer tin;                       /* buffer for adding tracers to tracer vectors */
 
+  
 struct interaction
 {
   int snap_A;
@@ -27,6 +28,7 @@ struct interaction
   float frac_B;
   float frac_A_dense;
   float frac_B_dense;
+  float frac_dense;
   float x_A[3];
   float x_B[3];
   long n;
@@ -74,6 +76,8 @@ int main(int argc, char **argv)
 
   float frac_A_dense;
   float frac_B_dense;
+  float frac_dense;
+
   float d_A;
   float d_B;
   float x_A[3];
@@ -309,12 +313,23 @@ int main(int argc, char **argv)
           //keep track of the overlap
           vector<long> idA;
           vector<long> idAdense;
-          long n_dense_min = 100; 
+          long n_dense_min = 100;
+          long n_dense_A = 0;
+          long n_dense_B = 0;
+          long n_dense_C = 0;
+
           for(tt=0;tt<sA[ss].l;tt++)
           {
+          	//printf("density = %e\n",tA[sA[ss].o+tt].d);
             idA.push_back(tA[sA[ss].o+tt].id);
+            //particles are sorted by decreasing density,
+            //so a loop forward can be cut at a fixed fraction
+            //of the maximum density
             if(tA[sA[ss].o+tt].d > tA[sA[ss].o].d*0.9 || tt<n_dense_min)
+            {
               idAdense.push_back(tA[sA[ss].o+tt].id);
+              n_dense_A++;
+            }
           }
 
           //sort idA
@@ -334,8 +349,8 @@ int main(int argc, char **argv)
 	  	          x_B[k] = 0;
 	  	        for(long tt=0;tt<sB[res[i].idx].l;tt++)
 	  	        {
-                if(tB[sB[res[i].idx].o+tt].d>0.9*tB[sB[res[i].idx].o].d && tt>=nkeep)
-                  break;
+	  	          if(tB[sB[res[i].idx].o+tt].d>0.9*tB[sB[res[i].idx].o].d && tt>=nkeep)
+	  	          	break;
                 d_B += tB[sB[res[i].idx].o+tt].d;
                 for(int k=0;k<3;k++)
                   x_B[k] += tB[sB[res[i].idx].o+tt].d*tB[sB[res[i].idx].o+tt].x[k];
@@ -343,12 +358,16 @@ int main(int argc, char **argv)
               for(int k=0;k<3;k++)
                 x_B[k] /= d_B;
               //record the ids from sB
-	  	        vector<long> idB, io, idBdense, iodense;
+	  	        vector<long> idB, io, idBdense, idCdense, iodense, iCodense;
+              n_dense_B = 0;
 		          for(tt=0;tt<sB[res[i].idx].l;tt++)
               {
 		            idB.push_back(tB[sB[res[i].idx].o+tt].id);
                 if(tB[sB[res[i].idx].o+tt].d > tA[sB[res[i].idx].o].d*0.9 || tt<n_dense_min)
+                {
                   idBdense.push_back(tB[sB[res[i].idx].o+tt].id);
+                  n_dense_B++;
+                }
               }
 		          //add the ids from A
 		          for(tt=0;tt<idA.size();tt++)
@@ -356,19 +375,33 @@ int main(int argc, char **argv)
               for(tt=0;tt<idAdense.size();tt++)
                 idBdense.push_back(idAdense[tt]);
 
+              //union
+              n_dense_C = min(n_dense_A,n_dense_B);
+
+              for(tt=0;tt<n_dense_C;tt++)
+              {
+                idCdense.push_back(idAdense[tt]);
+                idCdense.push_back(idBdense[tt]);
+              }
+
               //sort union
 		          std::sort(idB.begin(),idB.end());
               std::sort(idBdense.begin(),idBdense.end());
 
+              std::sort(idCdense.begin(),idCdense.end());
+
               //keep only the duplicates
               keep_duplicates(idB,&io);
               keep_duplicates(idBdense,&iodense);
+              keep_duplicates(idCdense,&iCodense);
 
               //compare the ids, check to see how many are duplicated
               frac_A = ((double) io.size())/((double) sA[ss].l);
               frac_B = ((double) io.size())/((double) sB[res[i].idx].l);
               frac_A_dense = ((double) iodense.size())/((double) idAdense.size());
               frac_B_dense = ((double) iodense.size())/((double) idBdense.size());
+              frac_dense   = ((double) iCodense.size())/((double) idCdense.size());
+
               if(io.size()>0)
               {
                 //this is a potential peak
@@ -394,6 +427,8 @@ int main(int argc, char **argv)
   		          ia_new.frac_B = frac_B;
                 ia_new.frac_A_dense = frac_A_dense;
                 ia_new.frac_B_dense = frac_B_dense;
+                ia_new.frac_dense = frac_dense;
+
   		          for(int k=0;k<3;k++)
   		          {
   		     	      ia_new.x_A[k] = x_A[k];
@@ -416,7 +451,11 @@ int main(int argc, char **argv)
 
               //free the ids
 	  	        vector<long>().swap(idB);
-              vector<long>().swap(idBdense);  	  
+              vector<long>().swap(idBdense);  	
+              vector<long>().swap(idCdense);
+              vector<long>().swap(iCodense);      
+              vector<long>().swap(iodense);      
+
             }//end if of valid interaction
           }//end loop over search results
 
@@ -528,7 +567,7 @@ void write_interactions(char fname[], vector<interaction> ia)
   fprintf(fp,"%ld\n",ia.size());
   for(size_t i=0;i<ia.size();i++)
   {
-  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2]);
+  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2]);
   }
   fclose(fp);
 }
