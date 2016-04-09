@@ -369,11 +369,6 @@ int main(int argc, char **argv)
                   n_dense_B++;
                 }
               }
-		          //add the ids from A
-		          for(tt=0;tt<idA.size();tt++)
-                idB.push_back(idA[tt]);
-              for(tt=0;tt<idAdense.size();tt++)
-                idBdense.push_back(idAdense[tt]);
 
               //union
               n_dense_C = min(n_dense_A,n_dense_B);
@@ -383,6 +378,14 @@ int main(int argc, char **argv)
                 idCdense.push_back(idAdense[tt]);
                 idCdense.push_back(idBdense[tt]);
               }
+              
+		          //add the ids from A
+		          for(tt=0;tt<idA.size();tt++)
+                idB.push_back(idA[tt]);
+              for(tt=0;tt<idAdense.size();tt++)
+                idBdense.push_back(idAdense[tt]);
+
+
 
               //sort union
 		          std::sort(idB.begin(),idB.end());
