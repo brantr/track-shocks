@@ -38,6 +38,11 @@ bool interaction_sort(interaction ia, interaction ib)
   //sort by decreasing frac_A
   return ia.frac_A>ib.frac_A;
 }
+bool sort_tracer_by_id(tracer ia, tracer ib)
+{
+  //sort by id_A
+  return ia.id < ib.id;
+}
 void show_shocks(vector<shock> s);
 void show_interactions(vector<interaction> ia);
 void write_interactions(char fname[], vector<interaction> ia);
@@ -82,11 +87,23 @@ int main(int argc, char **argv)
   float d_B;
   float x_A[3];
   float x_B[3];
+  float d_CA;
+  float d_CB;
+  float x_CA[3];
+  float x_CB[3];
 
   vector<shock>  sA;
   vector<shock>  sB;
   vector<tracer> tA;
   vector<tracer> tB;
+  vector<tracer> tC;
+
+  //vector<double> xC;
+  //vector<double> yC;
+  //vector<double> zC;
+  double xC[3], yC, zC;
+  double dC;
+  double dmax;
 
   vector<long> n_ints;
   vector<long> o_ints;
@@ -372,7 +389,7 @@ int main(int argc, char **argv)
 
               //union
               n_dense_C = min(n_dense_A,n_dense_B);
-
+              
               for(tt=0;tt<n_dense_C;tt++)
               {
                 idCdense.push_back(idAdense[tt]);
@@ -380,7 +397,7 @@ int main(int argc, char **argv)
               }
               
 		          //add the ids from A
-		          for(tt=0;tt<idA.size();tt++)
+              for(tt=0;tt<idA.size();tt++)
                 idB.push_back(idA[tt]);
               for(tt=0;tt<idAdense.size();tt++)
                 idBdense.push_back(idAdense[tt]);
@@ -388,7 +405,7 @@ int main(int argc, char **argv)
 
 
               //sort union
-		          std::sort(idB.begin(),idB.end());
+              std::sort(idB.begin(),idB.end());
               std::sort(idBdense.begin(),idBdense.end());
 
               std::sort(idCdense.begin(),idCdense.end());
@@ -397,6 +414,50 @@ int main(int argc, char **argv)
               keep_duplicates(idB,&io);
               keep_duplicates(idBdense,&iodense);
               keep_duplicates(idCdense,&iCodense);
+
+              dC = 0;
+              dmax = tA[sA[ss].o].d;
+              for(tt=0;tt<sA[ss].l;tt++)
+                if(tA[sA[ss].o+tt].d>0.9*dmax || tt<n_dense_min)
+                  tC.push_back(tA[sA[ss].o+tt]);
+              std::sort(tC.begin(),tC.end(),sort_tracer_by_id);
+
+              if(iCodense.size()>0)
+              {
+                tt=0;
+                int iC = 0;
+                for(int k=0;k<3;k++)
+                  xC[k] = 0;
+                while(tt<iCodense.size())
+                {
+                  if(tC[iC].id == iCodense[tt])
+                  {
+                    dC += tC[iC].d;
+                    for(int k=0;k<3;k++)
+                      xC[k] += tC[iC].d * tC[iC].x[k];
+                    tt++;
+                    iC++;
+
+                  }else if (tC[iC].id < iCodense[tt]){
+                    iC++;
+                    if(iC==tC.size())
+                      break;
+                  }else{
+                    tt++;
+                  }
+                }
+                for(int k=0;k<3;k++)
+                  xC[k] /= dC;
+              }else{
+                for(int k=0;k<3;k++)
+                  xC[k] = x_A[k];
+              }
+
+              //printf("xC %e %e %e dC %e icol %ld\n",xC[0],xC[1],xC[2],dC, iCodense.size());
+
+              //remove the tracers
+              vector<tracer>().swap(tC);
+
 
               //compare the ids, check to see how many are duplicated
               frac_A = ((double) io.size())/((double) sA[ss].l);
@@ -435,7 +496,9 @@ int main(int argc, char **argv)
   		          for(int k=0;k<3;k++)
   		          {
   		     	      ia_new.x_A[k] = x_A[k];
-  		     	      ia_new.x_B[k] = x_B[k];
+  		     	      //ia_new.x_B[k] = x_B[k];
+                  ia_new.x_B[k] = xC[k];
+                  //printf("k %d x_A %e x_B")
   		          }
   		          ia_tmp.push_back(ia_new);
 		          }
