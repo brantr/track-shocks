@@ -495,9 +495,10 @@ int main(int argc, char **argv)
 
   		          for(int k=0;k<3;k++)
   		          {
-  		     	      ia_new.x_A[k] = x_A[k];
-  		     	      //ia_new.x_B[k] = x_B[k];
-                  ia_new.x_B[k] = xC[k];
+  		     	      //ia_new.x_A[k] = x_A[k];
+                  ia_new.x_A[k] = xC[k];
+  		     	      ia_new.x_B[k] = x_B[k];
+                  //ia_new.x_B[k] = xC[k];
                   //printf("k %d x_A %e x_B")
   		          }
   		          ia_tmp.push_back(ia_new);
