@@ -340,6 +340,7 @@ void read_shock_data(char fname[], vector<shock> s, vector<tracer> *t)
 {
   int  n;
   long io;
+  long slb_check=0;
   FILE *fp_dat;
 
 
@@ -366,10 +367,16 @@ void read_shock_data(char fname[], vector<shock> s, vector<tracer> *t)
   printf("n = %d\n",n);
   fflush(stdout);
 
+  for(int i=0;i<s.size();i++)
+    slb_check += s[i].l;
+
+  printf("Check %ld %ld\n",slb_check,t->size());
+
+
   io = 0;
   for(int i=0;i<n;i++)
   {
-    //printf("s[i].l %ld\n",s[i].l);
+    //printf("s[%d].l %ld\n",i,s[i].l);
     //fflush(stdout);
     dpeak  = (float *) malloc(s[i].l * sizeof(float));
     xpeak  = (float *) malloc(s[i].l * sizeof(float));
@@ -405,6 +412,9 @@ void read_shock_data(char fname[], vector<shock> s, vector<tracer> *t)
       //(*t)[io].peak_index = s[i].id;
 
       io++;
+
+      //if(!(io%100))
+      //  printf("...%ld...\n",io);
     }
 
     free(dpeak);

@@ -112,6 +112,8 @@ int main(int argc, char **argv)
   long n_ints_in;
   long n_ints_run=0;
 
+  int fflag = 0;
+
   //vector<long> l_ia;
   //vector<long> o_ia;
   vector<interaction> ia;
@@ -171,11 +173,22 @@ int main(int argc, char **argv)
    	}
     fclose(fp_snap_list);
 
-    imin = snap_list[n_snaps-1];
-    imax = snap_list[0];
+
 
     if(argc>4)
       n_redundancy = atoi(argv[4]);
+    if(argc>5)
+      fflag = atoi(argv[5]);
+
+
+    if(fflag)
+    {
+      imin = snap_list[0];
+      imax = snap_list[n_snaps-1];
+    }else{
+      imin = snap_list[n_snaps-1];
+      imax = snap_list[0];
+    }
   }else{
 
     n_snaps = imax-imin+1;
@@ -192,8 +205,10 @@ int main(int argc, char **argv)
   sprintf(fbase,"peak.blended");
 
   sprintf(foutput,"interactions/interactions.%04d.%04d.%d.txt",imin,imax,n_redundancy);
+  printf("interaction output = %s\n",foutput);
 
   //begin a loop over snapshots
+  //for(int isnap = 0; isnap<1; isnap++)
   for(int isnap = 0; isnap<n_snaps-n_redundancy; isnap++)
   {
     //first snapshot for comparison
@@ -210,15 +225,23 @@ int main(int argc, char **argv)
     read_shock_list(flist_A, &sA);
     nA = 0;
     for(size_t i=0;i<sA.size();i++)
-      nA += sA.size();
+      nA += sA[i].l;
     tA.resize(nA);
     read_shock_data(fdata_A, sA, &tA);
     printf("sA->size() %ld\n",sA.size());
     printf("tA->size() %ld\n",tA.size());
 
+    //only loop over B 
+    //if snapshot A has shocks
+    if(sA.size()>0)
+    {
+
     //begin a loop over the second snapshot in a pair
     //allowing for multiple pairs to be considered
     for(int ired = 1; ired<=n_redundancy; ired++)
+    //for(int ired = 1; ired<=2; ired++)
+    //for(int ired = 1; ired<n_snaps-1-isnap; ired++)
+
     {
       //the second snapshot for comparison
       iB = snap_list[isnap+ired];
@@ -239,12 +262,21 @@ int main(int argc, char **argv)
        //read sB data
       nB = 0;
       for(size_t i=0;i<sB.size();i++)
-        nB += sB.size();
+      {
+        //printf("HERE sB[%d].l = %ld\n",i,sB[l])
+        nB += sB[i].l;
+      }
+      printf("sB.size %ld nB = %ld\n",sB.size(),nB);
       tB.resize(nB);
       printf("tB.size() %ld\n",tB.size());
       read_shock_data(fdata_B, sB, &tB);
 
       printf("Done reading shocks...\n");
+
+      //skip this if there are no shocks
+      //identified at this time
+      if(sB.size()>0)
+      {
 
       //print out info about the shock list
       //show_shocks(sA);
@@ -269,9 +301,13 @@ int main(int argc, char **argv)
       //build tree
       bp_tree = new kdtree2(bp_tree_data, true);
 
+      printf("Entering loop over A shocks..\n");
+
       //loop over A shocks
 #ifndef LIMIT_SHOCKS
+      //for(long ss=0;ss<100;ss++)
       for(long ss=0;ss<sA.size();ss++)
+
 #else
       for(long ss=0;ss<10;ss++)
 #endif 
@@ -313,7 +349,9 @@ int main(int argc, char **argv)
           //bp_tree->n_nearest(xc,10,res);
           bp_tree->r_nearest(xc,fdr*dr*dr,res);
           int force_flag = 0;
+          //int n_force = sB.size();
           int n_force = 5;
+
           if(res.size()<n_force)
           {
             bp_tree->n_nearest(xc,n_force,res);
@@ -321,7 +359,7 @@ int main(int argc, char **argv)
           }
 
           //print the results
-	        //printf("***** iA %ld l %ld res.size() %ld\n",ss,sA[ss].l,res.size());
+	        printf("***** iA %ld l %ld res.size() %ld\n",ss,sA[ss].l,res.size());
           //if(force_flag)
           //printf("FORCED\n");
           //for(size_t i=0;i<res.size();i++)
@@ -353,10 +391,13 @@ int main(int argc, char **argv)
           std::sort(idA.begin(),idA.end());
           std::sort(idAdense.begin(),idAdense.end());
 
+          printf("Looping over results (res.size() %ld)\n",res.size());
+
           //loop over results
           for(size_t i=0;i<res.size();i++)
           {
-            //if peak moved by less than dr
+            printf("res[i].idx %d sB[res[i].idx].l %ld d %e\n",res[i].idx,sB[res[i].idx].l,sB[res[i].idx].d);
+            //if peak moved by less than dr 
             if(1)
 	  	      //if(res[i].dis<fdr*dr*dr)
 	  	      {
@@ -380,12 +421,14 @@ int main(int argc, char **argv)
 		          for(tt=0;tt<sB[res[i].idx].l;tt++)
               {
 		            idB.push_back(tB[sB[res[i].idx].o+tt].id);
-                if(tB[sB[res[i].idx].o+tt].d > tA[sB[res[i].idx].o].d*0.9 || tt<n_dense_min)
+                if(tB[sB[res[i].idx].o+tt].d > tB[sB[res[i].idx].o].d*0.9 || tt<n_dense_min)
                 {
                   idBdense.push_back(tB[sB[res[i].idx].o+tt].id);
                   n_dense_B++;
                 }
               }
+
+              printf("Done counting dense stuff %ld %ld\n",n_dense_A,n_dense_B);
 
               //union
               n_dense_C = min(n_dense_A,n_dense_B);
@@ -410,11 +453,12 @@ int main(int argc, char **argv)
 
               std::sort(idCdense.begin(),idCdense.end());
 
+              //printf("Keeping Duplicates\n");
               //keep only the duplicates
               keep_duplicates(idB,&io);
               keep_duplicates(idBdense,&iodense);
               keep_duplicates(idCdense,&iCodense);
-
+              //printf("Pushing back dense\n");
               dC = 0;
               dmax = tA[sA[ss].o].d;
               for(tt=0;tt<sA[ss].l;tt++)
@@ -453,7 +497,7 @@ int main(int argc, char **argv)
                   xC[k] = x_A[k];
               }
 
-              //printf("xC %e %e %e dC %e icol %ld\n",xC[0],xC[1],xC[2],dC, iCodense.size());
+              printf("xC %e %e %e dC %e iol %ld icol %ld\n",xC[0],xC[1],xC[2],dC,io.size(),iCodense.size());
 
               //remove the tracers
               vector<tracer>().swap(tC);
@@ -469,10 +513,10 @@ int main(int argc, char **argv)
               if(io.size()>0)
               {
                 //this is a potential peak
-	  	          //printf("A %10ld B %10ld Ad %5.4e Bd %5.4e dis %5.4e dr %5.4e\n",sA[ss].id,tB[sB[res[i].idx].o].id,sA[ss].d,tB[sB[res[i].idx].o].d,sqrt(res[i].dis),sqrt(fdr)*dr);
+	  	          printf("IN IOSIZE A %10ld B %10ld Ad %5.4e Bd %5.4e dis %5.4e dr %5.4e\n",sA[ss].id,tB[sB[res[i].idx].o].id,sA[ss].d,tB[sB[res[i].idx].o].d,sqrt(res[i].dis),sqrt(fdr)*dr);
 
-                //printf("iosize %ld idBsize %ld idAsize %ld iodsize %ld idBdsize %ld idAdsize %ld\n",io.size(),idB.size(),idA.size(),iodense.size(),idBdense.size(),idAdense.size());
-  		          //printf("ia %10ld\tib %10ld\tida %10ld\t idb %10ld\tio %10ld\tfrac A %5.4e\tfrac B %5.4e frac Ad %5.4e\tfrac Bd %5.4e\n",sA[ss].l,sB[res[i].idx].l,sA[ss].id,sB[res[i].idx].id,io.size(),frac_A,frac_B,frac_A_dense,frac_B_dense);
+                printf("iosize %ld idBsize %ld idAsize %ld iodsize %ld idBdsize %ld idAdsize %ld\n",io.size(),idB.size(),idA.size(),iodense.size(),idBdense.size(),idAdense.size());
+  		          printf("ia %10ld\tib %10ld\tida %10ld\t idb %10ld\tio %10ld\tfrac A %5.4e\tfrac B %5.4e frac Ad %5.4e\tfrac Bd %5.4e\n",sA[ss].l,sB[res[i].idx].l,sA[ss].id,sB[res[i].idx].id,io.size(),frac_A,frac_B,frac_A_dense,frac_B_dense);
   		          //record the interaction
   		          ia_new.snap_A = iA;
   		          ia_new.snap_B = iB;
@@ -524,6 +568,8 @@ int main(int argc, char **argv)
               vector<long>().swap(iodense);      
 
             }//end if of valid interaction
+
+            printf("End if of valid int\n");
           }//end loop over search results
 
           //free the ids
@@ -558,16 +604,31 @@ int main(int argc, char **argv)
       {
         n_ints_total += n_ints[i];
         o_ints[i]     = o_ints[i-1] + n_ints[i-1];
+        printf("%d\t%ld\t%ld\n",i,n_ints[i],o_ints[i]);
       }
-      printf("n_ints_total %ld, n_ints_run %ld, n_ints.size() %ld, sA.size() %ld\n",n_ints_total,n_ints_run,n_ints.size(),sA.size());
-      write_interaction_counts(iB,iA,n_ints_total,n_ints,o_ints);
+      //printf("n_ints_total %ld, n_ints_run %ld, n_ints.size() %ld, sA.size() %ld\n",n_ints_total,n_ints_run,n_ints.size(),sA.size());
+
+
+      if(fflag)
+      {
+        write_interaction_counts(iA,iB,n_ints_total,n_ints,o_ints);
+
+      }else{
+        write_interaction_counts(iB,iA,n_ints_total,n_ints,o_ints);
+      }
+
 
       vector<long>().swap(n_ints);
       vector<long>().swap(o_ints);
+      }//if sB.size()>0
 
       vector<tracer>().swap(tB);
       vector<shock>().swap(sB);
+
+      //exit(-1);
     }//end loop over second snapshots
+
+    }//if sA.size()>0
 
     vector<tracer>().swap(tA);
     vector<shock>().swap(sA);
@@ -634,7 +695,7 @@ void write_interactions(char fname[], vector<interaction> ia)
   fprintf(fp,"%ld\n",ia.size());
   for(size_t i=0;i<ia.size();i++)
   {
-  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2]);
+  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2]);
   }
   fclose(fp);
 }
@@ -644,7 +705,7 @@ void write_interaction_counts(int iA, int iB, long n_total, vector<long> n_ints,
   char fname[200];
 
   sprintf(fname,"interactions/interaction_count.%04d.%04d.txt",iA,iB);
-  printf("wic: n_ints.size() %ld\n",n_ints.size());
+  printf("wic: n_ints.size() %ld; ic = %s\n",n_ints.size(),fname);
   if(!(fp=fopen(fname,"w")))
   {
   	printf("Error opening %s.\n",fname);
@@ -652,7 +713,7 @@ void write_interaction_counts(int iA, int iB, long n_total, vector<long> n_ints,
   }
   //fprintf(fp,"%ld\n",n_total);
   fprintf(fp,"%ld\n",n_ints.size());
-  for(int i=0;i<n_total;i++)
+  for(int i=0;i<n_ints.size();i++)
   	fprintf(fp,"%ld\t%ld\n",n_ints[i],o_ints[i]);
   fclose(fp);
 }
