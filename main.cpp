@@ -32,6 +32,8 @@ struct interaction
   float x_A[3];
   float x_B[3];
   float x_C[3];
+  float x_D[3];
+
   long n;
 };
 bool interaction_sort(interaction ia, interaction ib)
@@ -88,6 +90,8 @@ int main(int argc, char **argv)
   float d_B;
   float x_A[3];
   float x_B[3];
+  float x_D[3];
+
   float d_CA;
   float d_CB;
   float x_CA[3];
@@ -434,6 +438,7 @@ int main(int argc, char **argv)
                 x_B[k] /= d_B;
               //record the ids from sB
 	  	        vector<long> idB, io, idBdense, idCdense, iodense, iCodense;
+              vector<long>::iterator idCi;
               n_dense_B = 0;
 		          for(tt=0;tt<sB[res[i].idx].l;tt++)
               {
@@ -476,6 +481,11 @@ int main(int argc, char **argv)
               keep_duplicates(idBdense,&iodense);
               keep_duplicates(idCdense,&iCodense); //union of dense in A and B
 
+              //restrict idCdense to unique
+              idCi = unique(idCdense.begin(),idCdense.end());
+              idCdense.resize(std::distance(idCdense.begin(),idCi));
+
+
               //printf("Pushing back dense\n");
               dC = 0;
               dmax = tA[sA[ss].o].d;
@@ -514,6 +524,10 @@ int main(int argc, char **argv)
                 for(int k=0;k<3;k++)
                   xC[k] = x_A[k];
               }
+
+              //remember the location of the first particle
+              for(int k=0;k<3;k++)
+                x_D[k] = tA[sA[ss].o].x[k];
 
               //printf("xC %e %e %e dC %e iol %ld icol %ld\n",xC[0],xC[1],xC[2],dC,io.size(),iCodense.size());
 
@@ -703,6 +717,7 @@ void keep_duplicates(vector<long> iunion, vector<long> *ioverlap)
     }
   }
 }
+
 void write_interactions(char fname[], vector<interaction> ia)
 {
   FILE *fp;
@@ -714,7 +729,7 @@ void write_interactions(char fname[], vector<interaction> ia)
   fprintf(fp,"%ld\n",ia.size());
   for(size_t i=0;i<ia.size();i++)
   {
-  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2],ia[i].x_C[0],ia[i].x_C[1],ia[i].x_C[2]);
+  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2],ia[i].x_C[0],ia[i].x_C[1],ia[i].x_C[2],ia[i].x_D[0],ia[i].x_D[1],ia[i].x_D[2]);
   }
   fclose(fp);
 }
