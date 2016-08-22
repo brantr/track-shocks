@@ -31,6 +31,7 @@ struct interaction
   float frac_dense;
   float x_A[3];
   float x_B[3];
+  float x_C[3];
   long n;
 };
 bool interaction_sort(interaction ia, interaction ib)
@@ -152,7 +153,7 @@ int main(int argc, char **argv)
   	char fname_snap_list[200];
 
   	sprintf(fname_snap_list,"%s",argv[3]);
-    printf("Snap list = %s\n",argv[3]);
+    	printf("Snap list = %s\n",argv[3]);
 
    	FILE *fp_snap_list;
 
@@ -228,8 +229,8 @@ int main(int argc, char **argv)
       nA += sA[i].l;
     tA.resize(nA);
     read_shock_data(fdata_A, sA, &tA);
-    printf("sA->size() %ld\n",sA.size());
-    printf("tA->size() %ld\n",tA.size());
+    //printf("sA->size() %ld\n",sA.size());
+    //printf("tA->size() %ld\n",tA.size());
 
     //only loop over B 
     //if snapshot A has shocks
@@ -246,7 +247,7 @@ int main(int argc, char **argv)
       //the second snapshot for comparison
       iB = snap_list[isnap+ired];
 
-      printf("iA %04d\tiB %04d\n",iA,iB);
+      //printf("iA %04d\tiB %04d\n",iA,iB);
 
       sprintf(flist_B,"%s%s.%04d.list",fdir,fbase,iB);
       sprintf(fdata_B,"%s%s.%04d.dat", fdir,fbase,iB);
@@ -257,7 +258,7 @@ int main(int argc, char **argv)
 
       //read sB list
       read_shock_list(flist_B, &sB);
-      printf("sB->size() %ld\n",sB.size());
+      //printf("sB->size() %ld\n",sB.size());
 
        //read sB data
       nB = 0;
@@ -266,9 +267,9 @@ int main(int argc, char **argv)
         //printf("HERE sB[%d].l = %ld\n",i,sB[l])
         nB += sB[i].l;
       }
-      printf("sB.size %ld nB = %ld\n",sB.size(),nB);
+      //printf("sB.size %ld nB = %ld\n",sB.size(),nB);
       tB.resize(nB);
-      printf("tB.size() %ld\n",tB.size());
+      //printf("tB.size() %ld\n",tB.size());
       read_shock_data(fdata_B, sB, &tB);
 
       printf("Done reading shocks...\n");
@@ -316,6 +317,11 @@ int main(int argc, char **argv)
         if(sA[ss].l>1)
         {
           //this shock might have interactions
+
+          //We need to be sure to keep enough
+          //particles to define a reasonable CM
+          //but otherwise, we define the CM based on the
+          //particles with densities greater than 0.9 the max
           long nkeep=100;
 
           //compute the density location
@@ -324,7 +330,10 @@ int main(int argc, char **argv)
             x_A[k] = 0;
           for(long tt=0;tt<sA[ss].l;tt++)
           {
-            if(tA[sA[ss].o+tt].d>0.9*tA[sA[ss].o].d && tt>=nkeep)
+
+            //if we're below 0.9 the density maximum, and have enough particles
+            //then end the CM calculation
+            if(tA[sA[ss].o+tt].d<0.9*tA[sA[ss].o].d && tt>=nkeep)
               break;
             d_A += tA[sA[ss].o+tt].d;
             for(int k=0;k<3;k++)
@@ -359,7 +368,7 @@ int main(int argc, char **argv)
           }
 
           //print the results
-	        printf("***** iA %ld l %ld res.size() %ld\n",ss,sA[ss].l,res.size());
+	        //printf("***** iA %ld l %ld res.size() %ld\n",ss,sA[ss].l,res.size());
           //if(force_flag)
           //printf("FORCED\n");
           //for(size_t i=0;i<res.size();i++)
@@ -391,12 +400,12 @@ int main(int argc, char **argv)
           std::sort(idA.begin(),idA.end());
           std::sort(idAdense.begin(),idAdense.end());
 
-          printf("Looping over results (res.size() %ld)\n",res.size());
+          //printf("Looping over results (res.size() %ld)\n",res.size());
 
           //loop over results
           for(size_t i=0;i<res.size();i++)
           {
-            printf("res[i].idx %d sB[res[i].idx].l %ld d %e\n",res[i].idx,sB[res[i].idx].l,sB[res[i].idx].d);
+            //printf("res[i].idx %d sB[res[i].idx].l %ld d %e\n",res[i].idx,sB[res[i].idx].l,sB[res[i].idx].d);
             //if peak moved by less than dr 
             if(1)
 	  	      //if(res[i].dis<fdr*dr*dr)
@@ -407,11 +416,19 @@ int main(int argc, char **argv)
 	  	          x_B[k] = 0;
 	  	        for(long tt=0;tt<sB[res[i].idx].l;tt++)
 	  	        {
-	  	          if(tB[sB[res[i].idx].o+tt].d>0.9*tB[sB[res[i].idx].o].d && tt>=nkeep)
+
+                //if we're below 0.9 the density maximum, and have enough particles
+                //then end the CM calculation
+
+	  	          if(tB[sB[res[i].idx].o+tt].d<0.9*tB[sB[res[i].idx].o].d && tt>=nkeep)
 	  	          	break;
                 d_B += tB[sB[res[i].idx].o+tt].d;
                 for(int k=0;k<3;k++)
                   x_B[k] += tB[sB[res[i].idx].o+tt].d*tB[sB[res[i].idx].o+tt].x[k];
+
+
+
+
               }
               for(int k=0;k<3;k++)
                 x_B[k] /= d_B;
@@ -428,7 +445,7 @@ int main(int argc, char **argv)
                 }
               }
 
-              printf("Done counting dense stuff %ld %ld\n",n_dense_A,n_dense_B);
+              //printf("Done counting dense stuff %ld %ld\n",n_dense_A,n_dense_B);
 
               //union
               n_dense_C = min(n_dense_A,n_dense_B);
@@ -457,7 +474,8 @@ int main(int argc, char **argv)
               //keep only the duplicates
               keep_duplicates(idB,&io);
               keep_duplicates(idBdense,&iodense);
-              keep_duplicates(idCdense,&iCodense);
+              keep_duplicates(idCdense,&iCodense); //union of dense in A and B
+
               //printf("Pushing back dense\n");
               dC = 0;
               dmax = tA[sA[ss].o].d;
@@ -497,7 +515,7 @@ int main(int argc, char **argv)
                   xC[k] = x_A[k];
               }
 
-              printf("xC %e %e %e dC %e iol %ld icol %ld\n",xC[0],xC[1],xC[2],dC,io.size(),iCodense.size());
+              //printf("xC %e %e %e dC %e iol %ld icol %ld\n",xC[0],xC[1],xC[2],dC,io.size(),iCodense.size());
 
               //remove the tracers
               vector<tracer>().swap(tC);
@@ -513,10 +531,10 @@ int main(int argc, char **argv)
               if(io.size()>0)
               {
                 //this is a potential peak
-	  	          printf("IN IOSIZE A %10ld B %10ld Ad %5.4e Bd %5.4e dis %5.4e dr %5.4e\n",sA[ss].id,tB[sB[res[i].idx].o].id,sA[ss].d,tB[sB[res[i].idx].o].d,sqrt(res[i].dis),sqrt(fdr)*dr);
+	  	          //printf("IN IOSIZE A %10ld B %10ld Ad %5.4e Bd %5.4e dis %5.4e dr %5.4e\n",sA[ss].id,tB[sB[res[i].idx].o].id,sA[ss].d,tB[sB[res[i].idx].o].d,sqrt(res[i].dis),sqrt(fdr)*dr);
 
-                printf("iosize %ld idBsize %ld idAsize %ld iodsize %ld idBdsize %ld idAdsize %ld\n",io.size(),idB.size(),idA.size(),iodense.size(),idBdense.size(),idAdense.size());
-  		          printf("ia %10ld\tib %10ld\tida %10ld\t idb %10ld\tio %10ld\tfrac A %5.4e\tfrac B %5.4e frac Ad %5.4e\tfrac Bd %5.4e\n",sA[ss].l,sB[res[i].idx].l,sA[ss].id,sB[res[i].idx].id,io.size(),frac_A,frac_B,frac_A_dense,frac_B_dense);
+                //printf("iosize %ld idBsize %ld idAsize %ld iodsize %ld idBdsize %ld idAdsize %ld\n",io.size(),idB.size(),idA.size(),iodense.size(),idBdense.size(),idAdense.size());
+  		          //printf("ia %10ld\tib %10ld\tida %10ld\t idb %10ld\tio %10ld\tfrac A %5.4e\tfrac B %5.4e frac Ad %5.4e\tfrac Bd %5.4e\n",sA[ss].l,sB[res[i].idx].l,sA[ss].id,sB[res[i].idx].id,io.size(),frac_A,frac_B,frac_A_dense,frac_B_dense);
   		          //record the interaction
   		          ia_new.snap_A = iA;
   		          ia_new.snap_B = iB;
@@ -535,12 +553,13 @@ int main(int argc, char **argv)
   		          ia_new.frac_B = frac_B;
                 ia_new.frac_A_dense = frac_A_dense;
                 ia_new.frac_B_dense = frac_B_dense;
-                ia_new.frac_dense = frac_dense;
+                ia_new.frac_dense   = frac_dense;   //union of dense in A and B
 
   		          for(int k=0;k<3;k++)
   		          {
   		     	      //ia_new.x_A[k] = x_A[k];
-                  ia_new.x_A[k] = xC[k];
+                  ia_new.x_A[k] = x_A[k];
+                  ia_new.x_C[k] = xC[k];
   		     	      ia_new.x_B[k] = x_B[k];
                   //ia_new.x_B[k] = xC[k];
                   //printf("k %d x_A %e x_B")
@@ -569,7 +588,7 @@ int main(int argc, char **argv)
 
             }//end if of valid interaction
 
-            printf("End if of valid int\n");
+            //printf("End if of valid int\n");
           }//end loop over search results
 
           //free the ids
@@ -604,7 +623,7 @@ int main(int argc, char **argv)
       {
         n_ints_total += n_ints[i];
         o_ints[i]     = o_ints[i-1] + n_ints[i-1];
-        printf("%d\t%ld\t%ld\n",i,n_ints[i],o_ints[i]);
+        //printf("%d\t%ld\t%ld\n",i,n_ints[i],o_ints[i]);
       }
       //printf("n_ints_total %ld, n_ints_run %ld, n_ints.size() %ld, sA.size() %ld\n",n_ints_total,n_ints_run,n_ints.size(),sA.size());
 
@@ -695,7 +714,7 @@ void write_interactions(char fname[], vector<interaction> ia)
   fprintf(fp,"%ld\n",ia.size());
   for(size_t i=0;i<ia.size();i++)
   {
-  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2]);
+  	fprintf(fp,"%04d %04d %8ld %8ld %8ld %5.4e %5.4e %5.4e %5.4e %5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e %10ld %8ld %8ld %5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e % 5.4e\n",ia[i].snap_A,ia[i].snap_B,ia[i].idx_A,ia[i].idx_B,ia[i].n,ia[i].frac_A,ia[i].frac_B,ia[i].frac_A_dense,ia[i].frac_B_dense,ia[i].frac_dense,ia[i].id_A,ia[i].l_A,ia[i].o_A,ia[i].d_A,ia[i].x_A[0],ia[i].x_A[1],ia[i].x_A[2],ia[i].id_B,ia[i].l_B,ia[i].o_B,ia[i].d_B,ia[i].x_B[0],ia[i].x_B[1],ia[i].x_B[2],ia[i].x_C[0],ia[i].x_C[1],ia[i].x_C[2]);
   }
   fclose(fp);
 }
